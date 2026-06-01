@@ -1,0 +1,99 @@
+:root {
+  /* ── Nova Identidade Omini Market ── */
+  --laranja:       #FF6B00;
+  --laranja-hover: #E66000;
+  --azul:          #0052CC;
+  --azul-hover:    #0043A6;
+  --verde:         #10B981; /* Um verde um pouco mais moderno */
+  
+  /* ── Tons de Cinza e Fundo ── */
+  --cinza-bg:      #F3F4F6; /* Fundo levemente mais suave e moderno */
+  --cinza-card:    #FFFFFF; /* Cards brancos dão mais destaque aos produtos */
+  --texto:         #1F2937;
+  --texto-suave:   #4B5563;
+  --borda:         #E5E7EB;
+  --sombra:        0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+  --radius:        8px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--cinza-bg);
+  color: var(--texto);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { font-family: 'Sora', sans-serif; }
+
+a { text-decoration: none; color: inherit; }
+
+button { cursor: pointer; border: none; background: none; }
+
+input, select, textarea {
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+
+/* ── Utilitários ── */
+.container { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+
+/* O botão primário agora assume o Laranja de destaque do Omini */
+.btn-primary {
+  background: var(--laranja);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-weight: 700;
+  font-size: 14px;
+  transition: background .2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-primary:hover { background: var(--laranja-hover); }
+
+/* Para manter compatibilidade onde você usou .btn-yellow, 
+   ele agora assume o papel de botão secundário com o Azul Omini */
+.btn-yellow {
+  background: var(--azul);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: var(--radius);
+  font-weight: 700;
+  font-size: 15px;
+  transition: background .2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-yellow:hover { background: var(--azul-hover); }
+
+.badge-verde {
+  background: #EAFAF1;
+  color: var(--verde);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.estrelas { color: #f5a623; font-size: 13px; }
+
+/* ── Loading spinner ── */
+.spinner {
+  width: 40px; height: 40px;
+  border: 4px solid #eee;
+  border-top-color: var(--laranja); /* Spinner acompanhando a cor primária */
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+  margin: 60px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
