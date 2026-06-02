@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom'; // <--- IMPORTADO O useLocation
 import api from '../services/api';
 import ProdutoCard from '../components/ProdutoCard';
 
@@ -17,13 +17,32 @@ const categorias = [
 export default function Home() {
   const [produtos, setProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Captura os parâmetros da URL (ex: ?busca=termo)
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const termoBusca = queryParams.get('busca') || '';
 
   useEffect(() => {
-    api.get('/produtos?limite=8&ordem=mais_vendidos')
-      .then(({ data }) => setProdutos(data.produtos))
-      .catch(() => { })
+    setLoading(true);
+    
+    // Se houver um termo de busca, pesquisamos por ele. Caso contrário, traz os mais vendidos.
+    const url = termoBusca 
+      ? `/produtos?busca=${encodeURIComponent(termoBusca)}`
+      : '/produtos?limite=8&ordem=mais_vendidos';
+
+    api.get(url)
+      .then(({ data }) => {
+        // Ajuste defensivo: lida caso seu backend mude a estrutura da resposta entre as duas rotas
+        if (data.produtos) {
+          setProdutos(data.produtos);
+        } else {
+          setProdutos(data);
+        }
+      })
+      .catch(() => { setProdutos([]); })
       .finally(() => setLoading(false));
-  }, []);
+  }, [termoBusca]); // <--- O useEffect roda toda vez que o usuário pesquisa algo novo!
 
   return (
     <main style={{ paddingBottom: 40 }} className="container">
@@ -58,14 +77,20 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Produtos em Destaque */}
+      {/* Produtos em Destaque ou Resultados da Busca */}
       <section style={styles.section}>
         <div style={styles.sectionHeader}>
-          <h2 style={styles.sectionTitle}>🔥 Mais Vendidos</h2>
+          <h2 style={styles.sectionTitle}>
+            {termoBusca ? `🔍 Resultados para: "${termoBusca}"` : '🔥 Mais Vendidos'}
+          </h2>
           <Link to="/produtos" style={styles.verTodos}>Ver todos</Link>
         </div>
         {loading ? (
-          <div className="spinner" />
+          <div className="spinner" style={{ margin: '30px auto', display: 'block' }} />
+        ) : produtos.length === 0 ? (
+          <p style={{ textAlign: 'center', color: 'var(--texto-suave)', padding: '20px' }}>
+            Nenhum produto encontrado para sua busca.
+          </p>
         ) : (
           <div style={styles.grid}>
             {produtos.map(p => <ProdutoCard key={p.id} produto={p} />)}
