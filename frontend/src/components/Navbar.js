@@ -49,30 +49,35 @@ export default function Navbar() {
         {/* Menu do Usuário */}
         <nav style={styles.nav}>
           {usuario ? (
-            <div style={styles.userMenu}>
-              <Link to="/perfil" style={styles.navLink}>
-                👤 Olá, {usuario.nome?.split(' ')[0]}
-              </Link>
-              
-              <Link to="/pedidos" style={styles.navLink}>
-                📦 Meus Pedidos
-              </Link>
-              
-              {/* NOVA OPÇÃO DE ENDEREÇOS ADICIONADA AQUI */}
-              <Link to="/enderecos" style={styles.navLink}>
-                📍 Meus Endereços
-              </Link>
-              
-              {/* ÍCONE DO CARRINHO PARA USUÁRIO LOGADO */}
-              <Link to="/carrinho" style={styles.navLink}>
-                🛒 Carrinho
-              </Link>
+  <div style={styles.userMenu}>
+    <Link to="/perfil" style={styles.navLink}>
+      👤 Olá, {usuario.nome?.split(' ')[0]}
+    </Link>
+    
+    <Link to="/pedidos" style={styles.navLink}>
+      📦 Meus Pedidos
+    </Link>
+    
+    <Link to="/enderecos" style={styles.navLink}>
+      📍 Meus Endereços
+    </Link>
+    
+    <Link to="/carrinho" style={styles.navLink}>
+      🛒 Carrinho
+    </Link>
 
-              <button onClick={handleLogout} style={styles.logoutBtn}>
-                Sair
-              </button>
-            </div>
-          ) : (
+    {/* BOTÃO DO ADMIN ADICIONADO AQUI: */}
+    {(usuario.is_admin === 1 || usuario.is_admin === true) && (
+      <Link to="/admin" style={{ ...styles.navLink, color: 'var(--laranja)' }}>
+        ⚙️ Painel Admin
+      </Link>
+    )}
+
+    <button onClick={handleLogout} style={styles.logoutBtn}>
+      Sair
+    </button>
+  </div>
+) : (
             <div style={styles.userMenu}>
               <Link to="/login" style={styles.navLink}>Entre</Link>
               <Link to="/cadastro" style={styles.navLink}>Cadastre-se</Link>
