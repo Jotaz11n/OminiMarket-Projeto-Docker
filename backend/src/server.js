@@ -39,7 +39,7 @@ app.use('/api/enderecos', enderecoRoutes);  // Rota ativada
 
 // Health-check
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', message: 'API MercadoLivre Clone rodando!', timestamp: new Date() });
+  res.json({ status: 'ok', message: 'API OmniMarket rodando COM PLURAL!', timestamp: new Date() });
 });
 
 // Handler 404
