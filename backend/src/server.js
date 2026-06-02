@@ -35,7 +35,7 @@ app.use('/api/pedidos', pedidoRoutes);
 app.use('/api/categorias', categoriaRoutes);
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/endereco', enderecoRoutes); // Rota ativada
+app.use('/api/enderecos', enderecoRoutes);  // Rota ativada
 
 // Health-check
 app.get('/api/health', (_req, res) => {
