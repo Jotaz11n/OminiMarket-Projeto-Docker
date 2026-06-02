@@ -19,7 +19,6 @@ export default function Carrinho() {
   const [frete, setFrete] = useState({ valor: 0, prazo: null, carregando: false });
 
   // ── Busca endereços salvos ──────────────────────────────────────────
-  // CORREÇÃO: rota correta é /enderecos (com s)
   useEffect(() => {
     if (!usuario) return;
     api.get('/enderecos')
@@ -27,7 +26,10 @@ export default function Carrinho() {
         setEnderecosSalvos(data);
         // Se tiver endereço principal, seleciona automaticamente e calcula frete
         const principal = data.find(e => e.principal);
-        if (principal) calcularFrete(principal);
+        if (principal) {
+          setIdEnderecoSelecionado(principal.id); // 🔥 ESSA É A LINHA QUE FALTAVA!
+          calcularFrete(principal);
+        }
       })
       .catch(() => toast.error('Erro ao carregar endereços de entrega.'));
   }, [usuario]);
