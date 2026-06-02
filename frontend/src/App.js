@@ -24,7 +24,7 @@ export default function App() {
         <Routes>
           <Route path="/"              element={<Home />} />
           <Route path="/login"         element={<Login />} />
-          <Route path="/cadastro"      element={<Registro />} />
+          <Route path="/cadastro" element={<h1 style={{marginTop: '100px', textAlign: 'center'}}>TESTE DA ROTA DE CADASTRO</h1>} />
           <Route path="/produtos"      element={<Produtos />} />
           <Route path="/produtos/:id"  element={<ProdutoDetalhe />} />
           <Route path="/carrinho"      element={<Carrinho />} />
