@@ -60,4 +60,28 @@ router.post('/calcular-frete', async (req, res) => {
   res.json({ valorFrete, prazo });
 });
 
+// 5. Atualizar um endereço existente
+router.put('/:id', auth, async (req, res) => {
+  const { rua, numero, bairro, cidade, estado, cep } = req.body;
+
+  if (!rua || !numero || !bairro || !cidade || !estado || !cep) {
+    return res.status(400).json({ erro: 'Todos os campos são obrigatórios.' });
+  }
+
+  try {
+    const [result] = await db.query(
+      'UPDATE enderecos SET rua = ?, numero = ?, bairro = ?, cidade = ?, estado = ?, cep = ? WHERE id = ? AND usuario_id = ?',
+      [rua, numero, bairro, cidade, estado, cep, req.params.id, req.usuario.id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ erro: 'Endereço não encontrado ou não pertence a este usuário.' });
+    }
+
+    res.json({ message: 'Endereço atualizado com sucesso!' });
+  } catch (error) {
+    res.status(500).json({ erro: 'Erro ao atualizar endereço', detalhe: error.message });
+  }
+});
+
 module.exports = router;
