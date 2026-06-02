@@ -9,10 +9,13 @@ const fmtNum = v => new Intl.NumberFormat('pt-BR').format(v);
 
 const STATUS_COLOR = {
   aguardando_pagamento: { bg: '#FFF8E1', color: '#E67E22', label: 'Aguardando' },
-  pago:      { bg: '#EBF5FB', color: '#2980B9', label: 'Pago' },
-  enviado:   { bg: '#F5EEF8', color: '#8E44AD', label: 'Enviado' },
-  entregue:  { bg: '#EAFAF1', color: '#1E8449', label: 'Entregue' },
-  cancelado: { bg: '#FDEDEC', color: '#C0392B', label: 'Cancelado' },
+  pago:         { bg: '#EBF5FB', color: '#2980B9', label: 'Pago' },
+  em_separacao: { bg: '#F5EEF8', color: '#7D3C98', label: 'Em Separação' },
+  enviado:      { bg: '#E8F8F5', color: '#1A8A6D', label: 'Enviado' },
+  em_transito:  { bg: '#EAF0FB', color: '#2471A3', label: 'Em Trânsito' },
+  saiu_entrega: { bg: '#FEF9E7', color: '#D68910', label: 'Saiu p/ Entrega' },
+  entregue:     { bg: '#EAFAF1', color: '#1E8449', label: 'Entregue' },
+  cancelado:    { bg: '#FDEDEC', color: '#C0392B', label: 'Cancelado' },
 };
 const METODO = { pix: '💚 PIX', cartao_credito: '💳 Cartão', boleto: '🏦 Boleto' };
 
@@ -43,14 +46,12 @@ function KpiCard({ label, valor, sub, cor, icone }) {
 export default function Admin() {
   const { usuario }  = useAuth();
   const navigate     = useNavigate();
-  const [tab, setTab] = useState('dashboard');
-  const [dados, setDados]     = useState(null);
-  const [pedidos, setPedidos] = useState([]);
+  const [tab, setTab]   = useState('dashboard');
+  const [dados, setDados]       = useState(null);
+  const [pedidos, setPedidos]   = useState([]);
   const [produtos, setProdutos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
-  const [loading, setLoading] = useState(true);
-  
-  // CORREÇÃO 1: Adicionada a variável de estado que faltava para os filtros!
+  const [loading, setLoading]   = useState(true);
   const [filtroPedido, setFiltroPedido] = useState('');
 
   const carregarDados = async () => {
@@ -75,36 +76,28 @@ export default function Admin() {
   };
 
   useEffect(() => {
-    if (usuario === undefined) return; 
-    if (!usuario || usuario.is_admin === 0 || usuario.is_admin === false) { 
-      navigate('/'); 
-      return; 
-    }
+    if (usuario === undefined) return;
+    if (!usuario || !usuario.is_admin) { navigate('/'); return; }
     carregarDados();
-  }, [usuario, navigate]);
+  }, [usuario]);
 
+  // ── Aprovar / Reprovar pagamento ──────────────────────────────────
   const aprovarPagamento = async (id, acao) => {
-    const msg = acao === 'aprovar' ? 'Aprovar este pagamento?' : 'Reprovar este pagamento?';
-    if (!window.confirm(msg)) return;
+    if (!window.confirm(acao === 'aprovar' ? 'Aprovar este pagamento?' : 'Reprovar este pagamento? O estoque será devolvido.')) return;
     try {
       const { data } = await api.patch(`/admin/pedidos/${id}/pagamento`, { acao });
       const novoStatus = acao === 'aprovar' ? 'pago' : 'cancelado';
       setPedidos(prev => prev.map(p => p.id === id ? { ...p, status: novoStatus } : p));
-      
-      // CORREÇÃO 3: Usar setDados em vez de setDash
       setDados(prev => prev ? {
         ...prev,
-        kpis: {
-          ...prev.kpis,
-          qtd_aguardando: Math.max(0, prev.kpis.qtd_aguardando - 1),
-        },
+        kpis: { ...prev.kpis, qtd_aguardando: Math.max(0, prev.kpis.qtd_aguardando - 1) },
         pedidos_urgentes: prev.pedidos_urgentes.filter(p => p.id !== id),
       } : prev);
-      
       toast.success(data.mensagem);
     } catch (err) { toast.error(err.response?.data?.erro || 'Erro'); }
   };
 
+  // ── Alterar status pedido ─────────────────────────────────────────
   const alterarStatus = async (id, status) => {
     try {
       await api.patch(`/pedidos/${id}/status`, { status });
@@ -113,6 +106,7 @@ export default function Admin() {
     } catch (err) { toast.error(err.response?.data?.erro || 'Erro'); }
   };
 
+  // ── Promover / rebaixar admin ─────────────────────────────────────
   const toggleAdmin = async (uid, val) => {
     try {
       await api.patch(`/admin/usuarios/${uid}/admin`, { is_admin: val });
@@ -121,6 +115,17 @@ export default function Admin() {
     } catch (err) { toast.error(err.response?.data?.erro || 'Erro'); }
   };
 
+  // ── Remover usuário — NOVO ────────────────────────────────────────
+  const removerUsuario = async (uid, nome) => {
+    if (!window.confirm(`Remover o usuário "${nome}" permanentemente?\n\nEsta ação é irreversível e apagará todos os dados do usuário.`)) return;
+    try {
+      const { data } = await api.delete(`/admin/usuarios/${uid}`);
+      setUsuarios(prev => prev.filter(u => u.id !== uid));
+      toast.success(data.mensagem);
+    } catch (err) { toast.error(err.response?.data?.erro || 'Erro ao remover usuário'); }
+  };
+
+  // ── Remover produto ───────────────────────────────────────────────
   const removerProduto = async (id) => {
     if (!window.confirm('Remover este anúncio?')) return;
     try {
@@ -133,9 +138,8 @@ export default function Admin() {
   if (!usuario?.is_admin) return null;
   if (loading) return <div className="spinner" />;
 
-  const pedidosFiltrados = filtroPedido
-    ? pedidos.filter(p => p.status === filtroPedido)
-    : pedidos;
+  const pedidosFiltrados = filtroPedido ? pedidos.filter(p => p.status === filtroPedido) : pedidos;
+  const maxVendas = dados?.top_produtos?.length ? Math.max(...dados.top_produtos.map(p => p.total_vendas || 0), 1) : 1;
 
   const TABS = [
     { key: 'dashboard', label: '📊 Dashboard' },
@@ -145,10 +149,9 @@ export default function Admin() {
     { key: 'usuarios',  label: `👥 Usuários (${usuarios.length})` },
   ];
 
-  const maxVendas = dados?.top_produtos?.length ? Math.max(...dados.top_produtos.map(p => p.total_vendas || 0), 1) : 1;
-
   return (
     <div style={{ background: '#F0F2F5', minHeight: '100vh' }}>
+      {/* Cabeçalho */}
       <div style={s.adminHeader}>
         <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -156,7 +159,6 @@ export default function Admin() {
             <p style={s.adminSub}>Olá, {usuario.nome} · Sistema OmniMarket</p>
           </div>
           <div style={{ display: 'flex', gap: 12 }}>
-            {/* CORREÇÃO 2: Botão agora chama carregarDados diretamente */}
             <button onClick={carregarDados} style={s.refreshBtn}>🔄 Atualizar</button>
             <Link to="/" style={s.backBtn}>← Voltar à loja</Link>
           </div>
@@ -164,6 +166,7 @@ export default function Admin() {
       </div>
 
       <div className="container" style={{ paddingTop: 24, paddingBottom: 40 }}>
+        {/* Tabs */}
         <div style={s.tabRow}>
           {TABS.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
@@ -173,13 +176,14 @@ export default function Admin() {
           ))}
         </div>
 
+        {/* ════════ DASHBOARD ════════ */}
         {tab === 'dashboard' && dados && (
           <div>
             <div style={s.kpiGrid}>
-              <KpiCard label="Clientes ativos"  valor={fmtNum(dados.kpis.total_usuarios)}  icone="👥" cor="#3483FA" />
-              <KpiCard label="Receita aprovada" valor={fmt(dados.kpis.receita_aprovada)}    icone="💰" cor="#00A650" sub="Pedidos pagos/enviados/entregues" />
-              <KpiCard label="Aguardando pagto" valor={fmtNum(dados.kpis.qtd_aguardando)}   icone="⏳" cor="#E67E22" sub={`${fmt(dados.kpis.aguardando_total)} em espera`} />
-              <KpiCard label="Total de pedidos" valor={fmtNum(dados.kpis.total_pedidos)}     icone="📦" cor="#9B59B6" sub={`${dados.kpis.cancelados} cancelados`} />
+              <KpiCard label="Clientes ativos"  valor={fmtNum(dados.kpis.total_usuarios)} icone="👥" cor="#3483FA" />
+              <KpiCard label="Receita aprovada" valor={fmt(dados.kpis.receita_aprovada)}  icone="💰" cor="#00A650" sub="Pedidos pagos/enviados/entregues" />
+              <KpiCard label="Aguardando pagto" valor={fmtNum(dados.kpis.qtd_aguardando)} icone="⏳" cor="#E67E22" sub={`${fmt(dados.kpis.aguardando_total)} em espera`} />
+              <KpiCard label="Total de pedidos" valor={fmtNum(dados.kpis.total_pedidos)}  icone="📦" cor="#9B59B6" sub={`${dados.kpis.cancelados} cancelados`} />
             </div>
 
             <div style={s.twoCol}>
@@ -190,14 +194,14 @@ export default function Admin() {
                     <div key={item.status}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
                         <span style={{ fontSize: 13, fontWeight: 600, color: STATUS_COLOR[item.status]?.color }}>
-                          {STATUS_COLOR[item.status]?.label}
+                          {STATUS_COLOR[item.status]?.label || item.status}
                         </span>
                         <div style={{ textAlign: 'right' }}>
                           <span style={{ fontSize: 13, fontWeight: 700 }}>{item.qtd} pedido{item.qtd !== 1 ? 's' : ''}</span>
                           <span style={{ fontSize: 12, color: '#999', marginLeft: 8 }}>{fmt(item.volume)}</span>
                         </div>
                       </div>
-                      <BarraHorizontal valor={parseInt(item.qtd)} maximo={dados.kpis.total_pedidos} cor={STATUS_COLOR[item.status]?.color} />
+                      <BarraHorizontal valor={parseInt(item.qtd)} maximo={dados.kpis.total_pedidos} cor={STATUS_COLOR[item.status]?.color || '#ccc'} />
                     </div>
                   ))}
                 </div>
@@ -214,11 +218,9 @@ export default function Admin() {
                           <span style={{ fontSize: 13, fontWeight: 600 }}>{c.categoria}</span>
                           <span style={{ fontSize: 12, color: '#888' }}>{c.qtd_produtos} produtos</span>
                         </div>
-                        <BarraHorizontal valor={c.total_vendas} maximo={Math.max(...dados.vendas_categoria.map(x => x.total_vendas), 1)} cor="#3483FA" />
+                        <BarraHorizontal valor={c.total_vendas} maximo={Math.max(...dados.vendas_categoria.map(x => x.total_vendas), 1)} cor="#FF6600" />
                       </div>
-                      <span style={{ fontSize: 12, color: '#555', minWidth: 40, textAlign: 'right' }}>
-                        {c.total_vendas} vend.
-                      </span>
+                      <span style={{ fontSize: 12, color: '#555', minWidth: 40, textAlign: 'right' }}>{c.total_vendas} vend.</span>
                     </div>
                   ))}
                 </div>
@@ -226,6 +228,7 @@ export default function Admin() {
             </div>
 
             <div style={s.twoCol}>
+              {/* Pagamentos urgentes */}
               <div style={s.card}>
                 <h2 style={s.cardTitle}>
                   ⏳ Pagamentos aguardando aprovação
@@ -236,9 +239,7 @@ export default function Admin() {
                   )}
                 </h2>
                 {dados.pedidos_urgentes.length === 0 ? (
-                  <p style={{ color: '#888', fontSize: 14, marginTop: 12, textAlign: 'center', padding: '20px 0' }}>
-                    ✅ Nenhum pagamento pendente
-                  </p>
+                  <p style={{ color: '#888', fontSize: 14, textAlign: 'center', padding: '20px 0' }}>✅ Nenhum pagamento pendente</p>
                 ) : dados.pedidos_urgentes.map(p => (
                   <div key={p.id} style={s.urgentRow}>
                     <div style={{ flex: 1 }}>
@@ -248,10 +249,8 @@ export default function Admin() {
                           {METODO[p.metodo_pagamento] || p.metodo_pagamento}
                         </span>
                       </div>
-                      <p style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
-                        {p.comprador_nome} · {p.qtd_itens} item(ns) · {new Date(p.criado_em).toLocaleDateString('pt-BR')}
-                      </p>
-                      <p style={{ fontWeight: 800, fontSize: 16, marginTop: 4, color: '#222' }}>{fmt(p.total)}</p>
+                      <p style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{p.comprador_nome} · {p.qtd_itens} item(ns) · {new Date(p.criado_em).toLocaleDateString('pt-BR')}</p>
+                      <p style={{ fontWeight: 800, fontSize: 16, marginTop: 4 }}>{fmt(p.total)}</p>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <button onClick={() => aprovarPagamento(p.id, 'aprovar')} style={s.btnAprovar}>✅ Aprovar</button>
@@ -264,6 +263,7 @@ export default function Admin() {
                 )}
               </div>
 
+              {/* Top 5 produtos */}
               <div style={s.card}>
                 <h2 style={s.cardTitle}>🏆 Top 5 produtos</h2>
                 {dados.top_produtos.map((p, i) => (
@@ -271,11 +271,9 @@ export default function Admin() {
                     <span style={{ ...s.topNum, color: i < 3 ? ['#F5A623','#9B9B9B','#CD7F32'][i] : '#ccc' }}>#{i + 1}</span>
                     <img src={p.imagem || `https://picsum.photos/seed/${p.id}/48/48`} alt="" style={s.topImg} onError={e => { e.target.src = `https://picsum.photos/seed/${p.id+30}/48/48`; }} />
                     <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>{p.titulo}</p>
+                      <p style={{ fontSize: 13, fontWeight: 600 }}>{p.titulo}</p>
                       <p style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{p.categoria_nome}</p>
-                      <div style={{ marginTop: 4 }}>
-                        <BarraHorizontal valor={p.total_vendas || 0} maximo={maxVendas} cor="#FFE600" />
-                      </div>
+                      <div style={{ marginTop: 4 }}><BarraHorizontal valor={p.total_vendas || 0} maximo={maxVendas} cor="#FF6600" /></div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <p style={{ fontWeight: 800, fontSize: 14 }}>{fmtNum(p.total_vendas)}</p>
@@ -286,6 +284,7 @@ export default function Admin() {
               </div>
             </div>
 
+            {/* Novos usuários */}
             <div style={s.card}>
               <h2 style={s.cardTitle}>👥 Últimos clientes cadastrados</h2>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
@@ -303,16 +302,14 @@ export default function Admin() {
           </div>
         )}
 
-        {/* MANTIVE O RESTANTE DO TEU CÓDIGO (PAGAMENTOS, PEDIDOS, PRODUTOS E USUÁRIOS) */}
+        {/* ════════ PAGAMENTOS ════════ */}
         {tab === 'pagamentos' && (
           <div style={s.card}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={s.cardTitle}>💳 Aprovação de Pagamentos</h2>
-            </div>
+            <h2 style={{ ...s.cardTitle, marginBottom: 20 }}>💳 Aprovação de Pagamentos</h2>
             {pedidos.filter(p => p.status === 'aguardando_pagamento').length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px 0', color: '#888' }}>
                 <p style={{ fontSize: 48 }}>✅</p>
-                <p style={{ marginTop: 12, fontSize: 16 }}>Nenhum pagamento pendente</p>
+                <p style={{ marginTop: 12, fontSize: 16 }}>Nenhum pagamento pendente de aprovação</p>
               </div>
             ) : (
               <table style={s.table}>
@@ -324,17 +321,17 @@ export default function Admin() {
                 </thead>
                 <tbody>
                   {pedidos.filter(p => p.status === 'aguardando_pagamento').map(p => (
-                    <tr key={p.id} style={s.tr}>
+                    <tr key={p.id} style={{ ...s.tr, background: '#FFFDF0' }}>
                       <td style={s.td}><strong>#{p.id}</strong></td>
-                      <td style={s.td}><strong>{p.comprador_nome}</strong></td>
+                      <td style={s.td}><strong>{p.comprador_nome}</strong><br /><span style={{ fontSize: 11, color: '#999' }}>{p.comprador_email}</span></td>
                       <td style={s.td}>{p.qtd_itens}</td>
                       <td style={s.td}><strong>{fmt(p.total)}</strong></td>
                       <td style={s.td}>{METODO[p.metodo_pagamento] || p.metodo_pagamento}</td>
                       <td style={s.td}>{new Date(p.criado_em).toLocaleDateString('pt-BR')}</td>
                       <td style={s.td}>
                         <div style={{ display: 'flex', gap: 6 }}>
-                          <button onClick={() => aprovarPagamento(p.id, 'aprovar')} style={s.btnAprovar}>✅</button>
-                          <button onClick={() => aprovarPagamento(p.id, 'reprovar')} style={s.btnReprovar}>❌</button>
+                          <button onClick={() => aprovarPagamento(p.id, 'aprovar')} style={s.btnAprovar}>✅ Aprovar</button>
+                          <button onClick={() => aprovarPagamento(p.id, 'reprovar')} style={s.btnReprovar}>❌ Reprovar</button>
                         </div>
                       </td>
                     </tr>
@@ -345,95 +342,46 @@ export default function Admin() {
           </div>
         )}
 
+        {/* ════════ PEDIDOS ════════ */}
         {tab === 'pedidos' && (
           <div style={s.card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h2 style={s.cardTitle}>📦 Todos os Pedidos</h2>
               <select value={filtroPedido} onChange={e => setFiltroPedido(e.target.value)} style={{ ...s.select, width: 180 }}>
                 <option value="">Todos os status</option>
-                {Object.entries(STATUS_COLOR).map(([v, { label }]) => (
-                  <option key={v} value={v}>{label}</option>
-                ))}
+                {Object.entries(STATUS_COLOR).map(([v, { label }]) => <option key={v} value={v}>{label}</option>)}
               </select>
             </div>
             <table style={s.table}>
               <thead>
                 <tr style={s.thead}>
-                  <th style={s.th}>#</th><th style={s.th}>Comprador</th><th style={s.th}>Total</th><th style={s.th}>Status</th><th style={s.th}>Alterar</th>
+                  <th style={s.th}>#</th><th style={s.th}>Comprador</th><th style={s.th}>Total</th>
+                  <th style={s.th}>Pagamento</th><th style={s.th}>Data</th><th style={s.th}>Status</th><th style={s.th}>Alterar</th>
                 </tr>
               </thead>
               <tbody>
                 {pedidosFiltrados.map(p => (
                   <tr key={p.id} style={s.tr}>
-                    <td style={s.td}>#{p.id}</td>
-                    <td style={s.td}><strong>{p.comprador_nome}</strong></td>
-                    <td style={s.td}>{fmt(p.total)}</td>
+                    <td style={s.td}><strong>#{p.id}</strong></td>
+                    <td style={s.td}><strong>{p.comprador_nome}</strong><br /><span style={{ fontSize: 11, color: '#999' }}>{p.comprador_email}</span></td>
+                    <td style={s.td}><strong>{fmt(p.total)}</strong></td>
+                    <td style={s.td}>{METODO[p.metodo_pagamento] || p.metodo_pagamento}</td>
+                    <td style={s.td}>{new Date(p.criado_em).toLocaleDateString('pt-BR')}</td>
                     <td style={s.td}>
                       <span style={{ ...s.badge, background: STATUS_COLOR[p.status]?.bg, color: STATUS_COLOR[p.status]?.color }}>
-                        {STATUS_COLOR[p.status]?.label}
+                        {STATUS_COLOR[p.status]?.label || p.status}
                       </span>
                     </td>
                     <td style={s.td}>
-                      <select value={p.status} onChange={e => alterarStatus(p.id, e.target.value)} style={s.select}>
-                        {Object.entries(STATUS_COLOR).map(([v, { label }]) => <option key={v} value={v}>{label}</option>)}
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {tab === 'produtos' && (
-          <div style={s.card}>
-            <h2 style={{ ...s.cardTitle, marginBottom: 16 }}>🏷️ Todos os Anúncios</h2>
-            <table style={s.table}>
-              <thead>
-                <tr style={s.thead}>
-                  <th style={s.th}>Produto</th><th style={s.th}>Preço</th><th style={s.th}>Vendidos</th><th style={s.th}>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {produtos.map(p => (
-                  <tr key={p.id} style={s.tr}>
-                    <td style={s.td}><strong>{p.titulo}</strong></td>
-                    <td style={s.td}>{fmt(p.preco)}</td>
-                    <td style={s.td}>{p.total_vendas}</td>
-                    <td style={s.td}>
-                      <button onClick={() => removerProduto(p.id)} style={{ background: '#FDEDEC', color: '#C0392B', border: 'none', padding: '5px 9px', borderRadius: 4, cursor: 'pointer' }}>🗑</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {tab === 'usuarios' && (
-          <div style={s.card}>
-            <h2 style={{ ...s.cardTitle, marginBottom: 16 }}>👥 Gestão de Usuários</h2>
-            <table style={s.table}>
-              <thead>
-                <tr style={s.thead}>
-                  <th style={s.th}>Nome</th><th style={s.th}>E-mail</th><th style={s.th}>Perfil</th><th style={s.th}>Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {usuarios.map(u => (
-                  <tr key={u.id} style={s.tr}>
-                    <td style={s.td}><strong>{u.nome}</strong></td>
-                    <td style={s.td}>{u.email}</td>
-                    <td style={s.td}>
-                      <span style={{ ...s.badge, ...(u.is_admin ? { background: '#333', color: '#FFE600' } : { background: '#f0f0f0', color: '#666' }) }}>
-                        {u.is_admin ? '⚡ Admin' : 'Usuário'}
-                      </span>
-                    </td>
-                    <td style={s.td}>
-                      {u.id !== usuario.id && (
-                        <button onClick={() => toggleAdmin(u.id, !u.is_admin)} style={{ background: u.is_admin ? '#FDEDEC' : '#EAFAF1', color: u.is_admin ? '#C0392B' : '#1E8449', border: 'none', padding: '5px 10px', borderRadius: 4, cursor: 'pointer' }}>
-                          {u.is_admin ? 'Remover admin' : 'Tornar admin'}
-                        </button>
+                      {p.status === 'aguardando_pagamento' ? (
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button onClick={() => aprovarPagamento(p.id, 'aprovar')} style={{ ...s.btnAprovar, padding: '4px 8px', fontSize: 11 }}>✅</button>
+                          <button onClick={() => aprovarPagamento(p.id, 'reprovar')} style={{ ...s.btnReprovar, padding: '4px 8px', fontSize: 11 }}>❌</button>
+                        </div>
+                      ) : (
+                        <select value={p.status} onChange={e => alterarStatus(p.id, e.target.value)} style={s.select}>
+                          {Object.entries(STATUS_COLOR).map(([v, { label }]) => <option key={v} value={v}>{label}</option>)}
+                        </select>
                       )}
                     </td>
                   </tr>
@@ -443,6 +391,111 @@ export default function Admin() {
           </div>
         )}
 
+        {/* ════════ ANÚNCIOS ════════ */}
+        {tab === 'produtos' && (
+          <div style={s.card}>
+            <h2 style={{ ...s.cardTitle, marginBottom: 16 }}>🏷️ Todos os Anúncios</h2>
+            <table style={s.table}>
+              <thead>
+                <tr style={s.thead}>
+                  <th style={s.th}>Produto</th><th style={s.th}>Vendedor</th><th style={s.th}>Categoria</th>
+                  <th style={s.th}>Preço</th><th style={s.th}>Estoque</th><th style={s.th}>Vendidos</th><th style={s.th}>Status</th><th style={s.th}>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {produtos.map(p => (
+                  <tr key={p.id} style={s.tr}>
+                    <td style={s.td}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <img src={p.imagem_principal || `https://picsum.photos/seed/${p.id}/40/40`} alt="" style={{ width: 40, height: 40, borderRadius: 4, objectFit: 'cover' }} onError={e => { e.target.src = `https://picsum.photos/seed/${p.id+20}/40/40`; }} />
+                        <span style={{ fontSize: 13, fontWeight: 600, maxWidth: 160 }}>{p.titulo}</span>
+                      </div>
+                    </td>
+                    <td style={s.td}>{p.vendedor_nome}</td>
+                    <td style={s.td}>{p.categoria_nome || '—'}</td>
+                    <td style={s.td}>{fmt(p.preco)}</td>
+                    <td style={s.td}>{p.estoque}</td>
+                    <td style={s.td}>{p.total_vendas}</td>
+                    <td style={s.td}>
+                      <span style={{ ...s.badge, background: p.status === 'ativo' ? '#EAFAF1' : '#FDEDEC', color: p.status === 'ativo' ? '#1E8449' : '#C0392B' }}>
+                        {p.status}
+                      </span>
+                    </td>
+                    <td style={s.td}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <Link to={`/anunciar/${p.id}`} style={{ fontSize: 12, background: '#EBF5FB', color: '#2980B9', padding: '5px 9px', borderRadius: 4, fontWeight: 700, textDecoration: 'none' }}>✏️</Link>
+                        {p.status !== 'removido' && (
+                          <button onClick={() => removerProduto(p.id)} style={{ fontSize: 12, background: '#FDEDEC', color: '#C0392B', border: 'none', padding: '5px 9px', borderRadius: 4, fontWeight: 700, cursor: 'pointer' }}>🗑</button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* ════════ USUÁRIOS ════════ */}
+        {tab === 'usuarios' && (
+          <div style={s.card}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h2 style={s.cardTitle}>👥 Gestão de Usuários</h2>
+              <span style={{ fontSize: 13, color: '#888' }}>{usuarios.length} usuário(s) cadastrado(s)</span>
+            </div>
+            <table style={s.table}>
+              <thead>
+                <tr style={s.thead}>
+                  <th style={s.th}>#</th><th style={s.th}>Nome</th><th style={s.th}>E-mail</th>
+                  <th style={s.th}>Cadastro</th><th style={s.th}>Rep.</th><th style={s.th}>Perfil</th><th style={s.th}>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {usuarios.map(u => (
+                  <tr key={u.id} style={s.tr}>
+                    <td style={s.td}>{u.id}</td>
+                    <td style={s.td}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#FF6600', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14, color: '#fff', flexShrink: 0 }}>
+                          {u.nome[0].toUpperCase()}
+                        </div>
+                        <strong style={{ fontSize: 13 }}>{u.nome}</strong>
+                      </div>
+                    </td>
+                    <td style={s.td}>{u.email}</td>
+                    <td style={s.td}>{new Date(u.criado_em).toLocaleDateString('pt-BR')}</td>
+                    <td style={s.td}>⭐ {u.reputacao}</td>
+                    <td style={s.td}>
+                      <span style={{ ...s.badge, ...(u.is_admin ? { background: '#1a1a2e', color: '#FF6600' } : { background: '#f0f0f0', color: '#666' }) }}>
+                        {u.is_admin ? '⚡ Admin' : 'Usuário'}
+                      </span>
+                    </td>
+                    <td style={s.td}>
+                      {u.id !== usuario.id ? (
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {/* Promover / rebaixar admin */}
+                          <button onClick={() => toggleAdmin(u.id, !u.is_admin)}
+                            style={{ fontSize: 11, background: u.is_admin ? '#FDEDEC' : '#EAFAF1', color: u.is_admin ? '#C0392B' : '#1E8449', border: 'none', padding: '5px 8px', borderRadius: 4, fontWeight: 700, cursor: 'pointer' }}>
+                            {u.is_admin ? 'Remover admin' : 'Tornar admin'}
+                          </button>
+                          {/* Remover usuário — apenas não-admins */}
+                          {!u.is_admin && (
+                            <button onClick={() => removerUsuario(u.id, u.nome)}
+                              style={{ fontSize: 11, background: '#FDEDEC', color: '#C0392B', border: '1px solid #F5B7B1', padding: '5px 8px', borderRadius: 4, fontWeight: 700, cursor: 'pointer' }}>
+                              🗑 Remover
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: 12, color: '#ccc', fontStyle: 'italic' }}>você mesmo</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -453,10 +506,10 @@ const s = {
   adminTitle:  { fontSize: 24, fontWeight: 800, color: '#fff' },
   adminSub:    { fontSize: 13, color: '#aaa', marginTop: 4 },
   refreshBtn:  { background: 'rgba(255,255,255,.1)', color: '#fff', border: '1px solid rgba(255,255,255,.2)', padding: '8px 16px', borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: 'pointer' },
-  backBtn:     { background: '#FFE600', color: '#333', padding: '8px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, textDecoration: 'none' },
+  backBtn:     { background: '#FF6600', color: '#fff', padding: '8px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, textDecoration: 'none' },
   tabRow:      { display: 'flex', gap: 4, marginBottom: 20, background: '#fff', padding: 6, borderRadius: 10, boxShadow: '0 1px 6px rgba(0,0,0,.08)', flexWrap: 'wrap' },
   tab:         { flex: 1, padding: '10px 12px', background: 'transparent', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13, color: '#666', whiteSpace: 'nowrap' },
-  tabAtivo:    { background: '#1a1a2e', color: '#FFE600' },
+  tabAtivo:    { background: '#1a1a2e', color: '#FF6600' },
   kpiGrid:     { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 },
   twoCol:      { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 },
   card:        { background: '#fff', borderRadius: 10, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,.08)', marginBottom: 16 },
@@ -466,8 +519,8 @@ const s = {
   topNum:      { fontWeight: 900, fontSize: 20, minWidth: 32, textAlign: 'center' },
   topImg:      { width: 48, height: 48, borderRadius: 6, objectFit: 'cover', flexShrink: 0 },
   userChip:    { display: 'flex', gap: 10, alignItems: 'center', background: '#f8f8f8', borderRadius: 8, padding: '10px 14px' },
-  userAvatar:  { width: 36, height: 36, borderRadius: '50%', background: '#FFE600', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16 },
-  verTodosBtn: { width: '100%', background: 'transparent', border: 'none', color: '#3483FA', fontWeight: 700, fontSize: 13, cursor: 'pointer', marginTop: 12, padding: '8px 0', borderTop: '1px solid #f0f0f0' },
+  userAvatar:  { width: 36, height: 36, borderRadius: '50%', background: '#FF6600', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16, color: '#fff' },
+  verTodosBtn: { width: '100%', background: 'transparent', border: 'none', color: '#FF6600', fontWeight: 700, fontSize: 13, cursor: 'pointer', marginTop: 12, padding: '8px 0', borderTop: '1px solid #f0f0f0' },
   btnAprovar:  { background: '#EAFAF1', color: '#1E8449', border: '1px solid #A9DFBF', borderRadius: 6, padding: '6px 12px', fontWeight: 700, fontSize: 13, cursor: 'pointer' },
   btnReprovar: { background: '#FDEDEC', color: '#C0392B', border: '1px solid #F5B7B1', borderRadius: 6, padding: '6px 12px', fontWeight: 700, fontSize: 13, cursor: 'pointer' },
   table:       { width: '100%', borderCollapse: 'collapse', minWidth: 700 },
