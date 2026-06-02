@@ -24,12 +24,17 @@ export default function Enderecos() {
   const [form, setForm] = useState({ id: null, rua: '', numero: '', bairro: '', cidade: '', estado: '', cep: '', complemento: '' });
   const [editando, setEditando] = useState(false);
 
-  const buscarEnderecos = async () => {
+ const buscarEnderecos = async () => {
     try {
-      const { data } = await api.get('/enderecos'); // <-- Mudado para plural
+      // Recupera o token que foi salvo no localStorage quando o usuário fez login
+      const token = localStorage.getItem('token'); 
+      
+      const { data } = await api.get('/enderecos', {
+        headers: { Authorization: `Bearer ${token}` } // <-- Envia o token para o backend
+      });
       setLista(data);
     } catch (err) {
-      toast.error('Erro ao buscar seus endereços.');
+      toast.error('Erro ao buscar seus endereços. Verifique se você está logado.');
     } finally {
       setCarregando(false);
     }
@@ -67,13 +72,16 @@ export default function Enderecos() {
  const salvarEndereco = async (e) => {
     e.preventDefault();
     try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
       if (editando) {
-        // Rota PUT para atualizar o endereço existente
-        await api.put(`/enderecos/${form.id}`, form); // <-- Mudado para plural
+        // Rota PUT para atualizar o endereço existente enviando o token
+        await api.put(`/enderecos/${form.id}`, form, config);
         toast.success('Endereço atualizado com sucesso! 📝');
       } else {
-        // Rota POST para criar um novo endereço
-        await api.post('/enderecos', form); // <-- Mudado para plural
+        // Rota POST para criar um novo endereço enviando o token
+        await api.post('/enderecos', form, config);
         toast.success('Endereço adicionado com sucesso! 🎉');
       }
       cancelarEdicao();
@@ -82,11 +90,15 @@ export default function Enderecos() {
       toast.error(err.response?.data?.erro || 'Erro ao salvar endereço.');
     }
   };
-
+  
   const deletarEndereco = async (id) => {
     if (!window.confirm('Deseja realmente remover este endereço?')) return;
     try {
-      await api.delete(`/enderecos/${id}`); // <-- Mudado para plural
+      const token = localStorage.getItem('token');
+      
+      await api.delete(`/enderecos/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       toast.success('Endereço removido.');
       if (editando && form.id === id) cancelarEdicao();
       buscarEnderecos();
