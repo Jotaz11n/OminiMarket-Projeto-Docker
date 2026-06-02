@@ -3,17 +3,6 @@ import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import ProdutoCard from '../components/ProdutoCard';
 
-const CATEGORIA_SLUGS = {
-  'eletrônicos': 'eletronicos',
-  'moda':        'moda',
-  'casa':        'casa-jardim',
-  'esportes':    'esportes',
-  'livros':      'livros',
-  'beleza':      'beleza',
-  'autos':       'automoveis',
-  'brinquedos':  'brinquedos',
-};
-
 export default function Produtos() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [categorias, setCategorias]  = useState([]);
@@ -22,58 +11,62 @@ export default function Produtos() {
   const [loading, setLoading]        = useState(true);
   const [pagina, setPagina]          = useState(1);
 
+  // Captura os parâmetros reativos da URL
   const busca        = searchParams.get('busca')        || '';
   const categoria_id = searchParams.get('categoria_id') || '';
   const ordem        = searchParams.get('ordem')        || 'recentes';
   const freteGratis  = searchParams.get('frete_gratis') || '';
   const condicao     = searchParams.get('condicao')     || '';
 
+  // Carrega as categorias apenas uma vez ao montar o componente
   useEffect(() => {
-    api.get('/categorias').then(({ data }) => setCategorias(data));
+    api.get('/categorias')
+      .then(({ data }) => setCategorias(data))
+      .catch(err => console.error("Erro ao carregar categorias", err));
   }, []);
 
-  useEffect(() => {
-    if (!busca || categorias.length === 0) return;
-    const slug = CATEGORIA_SLUGS[busca.toLowerCase()];
-    if (!slug) return; 
-    const cat = categorias.find(c => c.slug === slug);
-    if (!cat) return;
-    
-    const next = new URLSearchParams(searchParams);
-    next.delete('busca');
-    next.set('categoria_id', cat.id);
-    setSearchParams(next, { replace: true });
-  }, [busca, categorias]);
-
+  // Faz a chamada à API sempre que QUALQUER filtro ou a página mudar
   useEffect(() => {
     setLoading(true);
+    
     const params = new URLSearchParams({ limite: 12, pagina });
-    if (busca && !CATEGORIA_SLUGS[busca.toLowerCase()])  params.set('busca', busca);
-    if (categoria_id) params.set('categoria_id', categoria_id);
-    if (ordem)        params.set('ordem', ordem);
-    if (freteGratis)  params.set('frete_gratis', freteGratis);
-    if (condicao)     params.set('condicao', condicao);
+    
+    if (busca)         params.set('busca', busca);
+    if (categoria_id)  params.set('categoria_id', categoria_id);
+    if (ordem)         params.set('ordem', ordem);
+    if (freteGratis)   params.set('frete_gratis', freteGratis);
+    if (condicao)      params.set('condicao', condicao);
 
-    api.get(`/produtos?${params}`)
-      .then(({ data }) => { setProdutos(data.produtos); setTotal(data.total); })
-      .catch(() => {})
+    api.get(`/produtos?${params.toString()}`)
+      .then(({ data }) => { 
+        setProdutos(data.produtos || []); 
+        setTotal(data.total || 0); 
+      })
+      .catch(() => {
+        setProdutos([]);
+        setTotal(0);
+      })
       .finally(() => setLoading(false));
   }, [busca, categoria_id, ordem, freteGratis, condicao, pagina]);
 
+  // Função utilitária para aplicar os filtros na URL preservando os outros
   const setFiltro = (key, val) => {
     const next = new URLSearchParams(searchParams);
     if (val) next.set(key, val); else next.delete(key);
+    
+    // Se trocou de categoria, limpa a busca por texto e vice-versa para não chocar
     if (key === 'categoria_id') next.delete('busca');
     if (key === 'busca')        next.delete('categoria_id');
+    
     setSearchParams(next);
-    setPagina(1);
+    setPagina(1); // Reseta para a primeira página ao filtrar
   };
 
   const catSelecionada = categorias.find(c => String(c.id) === String(categoria_id));
   const totalPag = Math.ceil(total / 12);
 
   const tituloResultado = () => {
-    if (catSelecionada) return `${catSelecionada.icone} ${catSelecionada.nome}`;
+    if (catSelecionada) return `${catSelecionada.icone || '📁'} ${catSelecionada.nome}`;
     if (busca)          return `Resultados para "${busca}"`;
     return 'Todos os Produtos';
   };
@@ -82,7 +75,7 @@ export default function Produtos() {
     <div className="container" style={{ paddingTop: 24, paddingBottom: 40 }}>
       <div style={styles.layout}>
         
-        {/* Sidebar */}
+        {/* Sidebar de Filtros */}
         <aside style={styles.sidebar}>
           <h3 style={styles.filterTitle}>Filtros</h3>
 
@@ -130,7 +123,7 @@ export default function Produtos() {
             </select>
           </div>
 
-          {/* Frete */}
+          {/* Frete Grátis */}
           <div style={styles.filterGroup}>
             <label style={{ ...styles.filterLabel, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <input
@@ -142,7 +135,7 @@ export default function Produtos() {
             </label>
           </div>
 
-          {/* Limpar filtros */}
+          {/* Botão de Limpar */}
           {(categoria_id || busca || condicao || freteGratis) && (
             <button
               onClick={() => { setSearchParams({}); setPagina(1); }}
@@ -153,7 +146,7 @@ export default function Produtos() {
           )}
         </aside>
 
-        {/* Conteúdo */}
+        {/* Área de Conteúdo dos Produtos */}
         <div style={{ flex: 1 }}>
           <div style={styles.header}>
             <h2 style={styles.titulo}>{tituloResultado()}</h2>
@@ -161,12 +154,14 @@ export default function Produtos() {
           </div>
 
           {loading ? (
-            <div className="spinner" />
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+              <div className="spinner" />
+            </div>
           ) : produtos.length === 0 ? (
             <div style={styles.vazio}>
               <p style={{ fontSize: 48 }}>🔍</p>
               <p style={{ marginTop: 12, fontWeight: 600 }}>Nenhum produto encontrado</p>
-              {(categoria_id || busca) && (
+              {(categoria_id || busca || condicao || freteGratis) && (
                 <button onClick={() => { setSearchParams({}); setPagina(1); }} style={{ ...styles.limparBtn, marginTop: 16, maxWidth: 200, margin: '16px auto 0' }}>
                   Ver todos os produtos
                 </button>
@@ -178,6 +173,7 @@ export default function Produtos() {
                 {produtos.map(p => <ProdutoCard key={p.id} produto={p} />)}
               </div>
               
+              {/* Paginação */}
               {totalPag > 1 && (
                 <div style={styles.paginacao}>
                   {Array.from({ length: totalPag }, (_, i) => i + 1).map(p => (
