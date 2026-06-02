@@ -24,7 +24,7 @@ export default function App() {
         <Routes>
           <Route path="/"              element={<Home />} />
           <Route path="/login"         element={<Login />} />
-          <Route path="/registro"      element={<Registro />} />
+          <Route path="/cadastro"      element={<Registro />} />
           <Route path="/produtos"      element={<Produtos />} />
           <Route path="/produtos/:id"  element={<ProdutoDetalhe />} />
           <Route path="/carrinho"      element={<Carrinho />} />
@@ -33,11 +33,7 @@ export default function App() {
           <Route path="/anunciar"      element={<NovoAnuncio />} />
           <Route path="/admin"         element={<Admin />} />
           <Route path="/editar-anuncio/:id" element={<EditarAnuncio />} />
-          
-          {/* Rota para a página de gerenciamento de endereços */}
           <Route path="/enderecos"     element={<Enderecos />} />
-
-          {/* O catch-all (*) foi movido para o final para evitar conflitos de rotas */}
           <Route path="*"              element={<Navigate to="/" />} />
         </Routes>
       </CarrinhoProvider>
