@@ -9,9 +9,10 @@ export default function Navbar() {
 
   const handleBusca = (e) => {
     e.preventDefault();
-    if (busca.trim()) {
-      navigate(`/?busca=${encodeURIComponent(busca.trim())}`);
-      setBusca(''); // Opcional: limpa a barra de busca após dar Enter
+    const termo = busca.trim();
+    if (termo) {
+      navigate(`/produtos?busca=${encodeURIComponent(termo)}`);
+      setBusca(''); // limpa o campo após buscar
     }
   };
 
@@ -50,40 +51,37 @@ export default function Navbar() {
         {/* Menu do Usuário */}
         <nav style={styles.nav}>
           {usuario ? (
-  <div style={styles.userMenu}>
-    <Link to="/perfil" style={styles.navLink}>
-      👤 Olá, {usuario.nome?.split(' ')[0]}
-    </Link>
-    
-    <Link to="/pedidos" style={styles.navLink}>
-      📦 Meus Pedidos
-    </Link>
-    
-    <Link to="/enderecos" style={styles.navLink}>
-      📍 Meus Endereços
-    </Link>
-    
-    <Link to="/carrinho" style={styles.navLink}>
-      🛒 Carrinho
-    </Link>
+            <div style={styles.userMenu}>
+              <Link to="/perfil" style={styles.navLink}>
+                👤 Olá, {usuario.nome?.split(' ')[0]}
+              </Link>
 
-    {/* BOTÃO DO ADMIN ADICIONADO AQUI: */}
-    {(usuario.is_admin === 1 || usuario.is_admin === true) && (
-      <Link to="/admin" style={{ ...styles.navLink, color: 'var(--laranja)' }}>
-        ⚙️ Painel Admin
-      </Link>
-    )}
+              <Link to="/pedidos" style={styles.navLink}>
+                📦 Meus Pedidos
+              </Link>
 
-    <button onClick={handleLogout} style={styles.logoutBtn}>
-      Sair
-    </button>
-  </div>
-) : (
+              <Link to="/enderecos" style={styles.navLink}>
+                📍 Meus Endereços
+              </Link>
+
+              <Link to="/carrinho" style={styles.navLink}>
+                🛒 Carrinho
+              </Link>
+
+              {(usuario.is_admin === 1 || usuario.is_admin === true) && (
+                <Link to="/admin" style={{ ...styles.navLink, color: 'var(--laranja)' }}>
+                  ⚙️ Painel Admin
+                </Link>
+              )}
+
+              <button onClick={handleLogout} style={styles.logoutBtn}>
+                Sair
+              </button>
+            </div>
+          ) : (
             <div style={styles.userMenu}>
               <Link to="/login" style={styles.navLink}>Entre</Link>
-              <Link to="/cadastro" style={styles.navLink}>Cadastre-se</Link>
-              
-              {/* ÍCONE DO CARRINHO PARA VISITANTE */}
+              <Link to="/registro" style={styles.navLink}>Cadastre-se</Link>
               <Link to="/carrinho" style={styles.navLink}>
                 🛒 Carrinho
               </Link>
@@ -111,16 +109,6 @@ const styles = {
     justifyContent: 'space-between',
     gap: '24px',
   },
-  logo: {
-    fontSize: '24px',
-    fontWeight: '800',
-    color: 'var(--texto)',
-    fontFamily: "'Sora', sans-serif",
-    letterSpacing: '-0.5px',
-  },
-  logoHighlight: {
-    color: 'var(--laranja)',
-  },
   searchForm: {
     flex: 1,
     maxWidth: '600px',
@@ -146,6 +134,8 @@ const styles = {
     padding: '0 16px',
     fontSize: '16px',
     color: 'var(--texto-suave)',
+    border: 'none',
+    cursor: 'pointer',
   },
   nav: {
     display: 'flex',
