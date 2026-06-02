@@ -50,7 +50,7 @@ export function Login() {
           {loading ? 'Entrando…' : 'Entrar'}
         </button>
       </form>
-      <p style={styles.link}>Não tem conta? <Link to="/registro" style={{ color: '#3483FA' }}>Cadastre-se</Link></p>
+      <p style={styles.link}>Não tem conta? <Link to="/cadastro" style={{ color: '#3483FA' }}>Cadastre-se</Link></p>
     </FormWrap>
   );
 }
