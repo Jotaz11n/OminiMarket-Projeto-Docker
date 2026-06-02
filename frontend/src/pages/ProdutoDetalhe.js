@@ -33,7 +33,6 @@ export default function ProdutoDetalhe() {
   const handleCarrinho = async () => {
     if (!usuario) { toast.error('Faça login'); navigate('/login'); return; }
     await adicionarItem(produto.id, qtd);
-    toast.success('Adicionado ao carrinho! 🛒');
   };
 
   if (loading) return <div className="spinner" />;
