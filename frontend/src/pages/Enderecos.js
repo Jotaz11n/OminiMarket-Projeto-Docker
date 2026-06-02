@@ -26,7 +26,7 @@ export default function Enderecos() {
 
   const buscarEnderecos = async () => {
     try {
-      const { data } = await api.get('/endereco');
+      const { data } = await api.get('/enderecos'); // <-- Mudado para plural
       setLista(data);
     } catch (err) {
       toast.error('Erro ao buscar seus endereços.');
@@ -34,7 +34,7 @@ export default function Enderecos() {
       setCarregando(false);
     }
   };
-
+  
   useEffect(() => {
     buscarEnderecos();
   }, []);
@@ -63,16 +63,16 @@ export default function Enderecos() {
     setForm({ id: null, rua: '', numero: '', bairro: '', cidade: '', estado: '', cep: '', complemento: '' });
   };
 
-  const salvarEndereco = async (e) => {
+ const salvarEndereco = async (e) => {
     e.preventDefault();
     try {
       if (editando) {
         // Rota PUT para atualizar o endereço existente
-        await api.put(`/endereco/${form.id}`, form);
+        await api.put(`/enderecos/${form.id}`, form); // <-- Mudado para plural
         toast.success('Endereço atualizado com sucesso! 📝');
       } else {
         // Rota POST para criar um novo endereço
-        await api.post('/endereco', form);
+        await api.post('/enderecos', form); // <-- Mudado para plural
         toast.success('Endereço adicionado com sucesso! 🎉');
       }
       cancelarEdicao();
@@ -85,7 +85,7 @@ export default function Enderecos() {
   const deletarEndereco = async (id) => {
     if (!window.confirm('Deseja realmente remover este endereço?')) return;
     try {
-      await api.delete(`/endereco/${id}`);
+      await api.delete(`/enderecos/${id}`); // <-- Mudado para plural
       toast.success('Endereço removido.');
       if (editando && form.id === id) cancelarEdicao();
       buscarEnderecos();
