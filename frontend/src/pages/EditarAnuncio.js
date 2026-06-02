@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import api from '../services/api'; // <--- IMPORTAÇÃO DA API CORRETA DO RAILWAY
 
 export default function EditarAnuncio() {
   const { id } = useParams();
@@ -12,20 +13,18 @@ export default function EditarAnuncio() {
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(true);
 
-  // 1. Carrega os dados atuais do produto ao abrir a tela
+  // 1. Carrega os dados atuais do produto usando a API do Railway
   useEffect(() => {
     const carregarProduto = async () => {
       try {
-        const resposta = await fetch(`http://localhost:3001/api/produtos/${id}`);
-        if (!resposta.ok) throw new Error('Não foi possível carregar os dados do anúncio');
+        const { data } = await api.get(`/produtos/${id}`);
         
-        const produto = await resposta.json();
-        setTitulo(produto.titulo);
-        setPreco(produto.preco);
-        setDescricao(produto.descricao);
-        setEstoque(produto.estoque);
+        setTitulo(data.titulo);
+        setPreco(data.preco);
+        setDescricao(data.descricao);
+        setEstoque(data.estoque);
       } catch (err) {
-        setErro(err.message);
+        setErro(err.response?.data?.erro || 'Não foi possível carregar os dados do anúncio');
       } finally {
         setCarregando(false);
       }
@@ -34,35 +33,23 @@ export default function EditarAnuncio() {
     carregarProduto();
   }, [id]);
 
-  // 2. Envia os dados atualizados para o backend
+  // 2. Envia os dados atualizados para o backend do Railway
   const handleSalvar = async (e) => {
     e.preventDefault();
     setErro('');
 
     try {
-      const token = localStorage.getItem('token');
-      const resposta = await fetch(`http://localhost:3001/api/produtos/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        // Enviando os campos exatamente como o backend espera
-        body: JSON.stringify({ 
-          titulo, 
-          preco: parseFloat(preco), 
-          descricao, 
-          estoque: parseInt(estoque) 
-        })
+      await api.put(`/produtos/${id}`, { 
+        titulo, 
+        preco: parseFloat(preco), 
+        descricao, 
+        estoque: parseInt(estoque) 
       });
-
-      const dados = await resposta.json();
-      if (!resposta.ok) throw new Error(dados.erro || 'Erro ao atualizar anúncio');
 
       alert('Anúncio atualizado com sucesso no Omini Market!');
       navigate('/perfil'); // Volta para o perfil após salvar
     } catch (err) {
-      setErro(err.message);
+      setErro(err.response?.data?.erro || 'Erro ao atualizar anúncio');
     }
   };
 
