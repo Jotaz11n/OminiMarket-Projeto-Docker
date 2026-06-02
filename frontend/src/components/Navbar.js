@@ -10,7 +10,8 @@ export default function Navbar() {
   const handleBusca = (e) => {
     e.preventDefault();
     if (busca.trim()) {
-      navigate(`/?busca=${busca}`);
+      navigate(`/?busca=${encodeURIComponent(busca.trim())}`);
+      setBusca(''); // Opcional: limpa a barra de busca após dar Enter
     }
   };
 
